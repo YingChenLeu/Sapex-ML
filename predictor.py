@@ -97,15 +97,6 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 
-from main import predict_match, update_model
-
-cred = credentials.Certificate("sapex-a05d5-firebase-adminsdk-fbsvc-0a12fac516.json")
-
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(cred)
-
-db = firestore.client()
-
 import random
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
