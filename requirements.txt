@@ -1,0 +1,6 @@
+fastapi==0.110.0
+uvicorn==0.29.0
+python-dotenv==1.0.1
+firebase-admin==6.4.0
+google-cloud-firestore==2.14.0
+deap==1.4.1
