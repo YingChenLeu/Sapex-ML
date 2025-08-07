@@ -1,3 +1,5 @@
+from apscheduler.schedulers.background import BackgroundScheduler
+import threading
 # uvicorn utils.predictor:app --reload
 from fastapi.middleware.cors import CORSMiddleware
 import os 
@@ -434,3 +436,22 @@ def train_ga_weights(problem_type: str = Query("default", description="Problem t
     evolved_weights_by_problem[problem_type] = list(best)
     save_weights()
     return {"best_evolved_weights": list(best)}
+
+
+# --- APScheduler: weekly training job ---
+# Make sure train_ga_weights is defined before scheduler setup
+
+scheduler = BackgroundScheduler()
+
+def weekly_train_job():
+    try:
+        train_ga_weights("default")  # Replace "default" if you want other types
+    except Exception as e:
+        print(f"Training failed: {e}")
+
+# Schedule the job: every Saturday at 3:00 AM server time
+scheduler.add_job(weekly_train_job, trigger='cron', day_of_week='sat', hour=3, minute=0)
+scheduler.start()
+
+# Prevent scheduler from being garbage collected
+threading.Thread(target=scheduler.start, daemon=True).start()
