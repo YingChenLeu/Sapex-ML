@@ -224,7 +224,7 @@ def coldstart_match(
     if not helpers:
         return JSONResponse(status_code=404, content={"error": "No available helpers."})
 
-    weights = DEFAULT_WEIGHTS_BY_PROBLEM.get(problem_type, DEFAULT_WEIGHTS_BY_PROBLEM["default"])
+    weights = get_problem_weights(problem_type)
 
     def score_match(seeker_traits, helper_traits, weights):
         seeker_weights = weights[:5]
@@ -261,13 +261,76 @@ evolved_weights_by_problem = {}
 
 def load_weights():
     global evolved_weights_by_problem
-    if os.path.exists("evolved_weights.pkl"):
-        with open("evolved_weights.pkl", "rb") as f:
-            evolved_weights_by_problem = pickle.load(f)
+    # Try Firestore first
+    try:
+        doc = db.collection("model_meta").document("evolved_weights").get()
+        if doc.exists:
+            data = doc.to_dict() or {}
+            by_problem = data.get("by_problem") or {}
+            if isinstance(by_problem, dict):
+                # Validate shape: only keep length-10 lists/tuples
+                evolved_weights_by_problem = {
+                    k: list(v)
+                    for k, v in by_problem.items()
+                    if isinstance(v, (list, tuple)) and len(v) == 10
+                }
+                return
+    except Exception as e:
+        print(f"load_weights Firestore error: {e}")
+
+    # Legacy fallback: local pickle (ephemeral on Render)
+    try:
+        if os.path.exists("evolved_weights.pkl"):
+            with open("evolved_weights.pkl", "rb") as f:
+                evolved_weights_by_problem = pickle.load(f)
+            # Best-effort: persist legacy weights to Firestore for durability
+            try:
+                db.collection("model_meta").document("evolved_weights").set({
+                    "by_problem": evolved_weights_by_problem
+                }, merge=True)
+            except Exception as e2:
+                print(f"migrate legacy weights error: {e2}")
+    except Exception as e:
+        print(f"load_weights pickle error: {e}")
+
+# --- Helper: resolve weights for a given problem type, preferring trained weights ---
+def get_problem_weights(problem_type: str):
+    """
+    Return a length-10 weight vector for the given problem type, preferring
+    GA-trained weights if available, otherwise falling back to defaults.
+    Order: first 5 for seeker traits, last 5 for helper traits.
+    """
+    # Try GA-evolved weights for the requested type
+    w = evolved_weights_by_problem.get(problem_type)
+    if isinstance(w, (list, tuple)) and len(w) == 10:
+        return list(w)
+
+    # Fall back to GA-evolved default, if present
+    w = evolved_weights_by_problem.get("default")
+    if isinstance(w, (list, tuple)) and len(w) == 10:
+        return list(w)
+
+    # Finally, use hardcoded defaults
+    return DEFAULT_WEIGHTS_BY_PROBLEM.get(
+        problem_type,
+        DEFAULT_WEIGHTS_BY_PROBLEM["default"]
+    )
 
 def save_weights():
-    with open("evolved_weights.pkl", "wb") as f:
-        pickle.dump(evolved_weights_by_problem, f)
+    # Primary: save to Firestore so weights persist across restarts/redeploys
+    try:
+        db.collection("model_meta").document("evolved_weights").set({
+            "by_problem": evolved_weights_by_problem
+        }, merge=True)
+    except Exception as e:
+        print(f"save_weights Firestore error: {e}")
+
+    # Optional: also write local pickle as a warm-cache (ephemeral on Render)
+    try:
+        with open("evolved_weights.pkl", "wb") as f:
+            pickle.dump(evolved_weights_by_problem, f)
+    except Exception as e:
+        print(f"save_weights pickle error: {e}")
 
 load_weights()
 
