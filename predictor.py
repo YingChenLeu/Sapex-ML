@@ -244,8 +244,8 @@ def coldstart_match(
     return {
         "strategy": "coldstart-default-weights",
         "seeker_id": uid,
-        "helper_id": best_match[0],
-        "predicted_compatibility": best_score,
+        "helper_uid": best_match[0],
+        "predicted_score": best_score,
         "problem_type": problem_type,
         "seeker_traits": seeker,
         "helper_traits": best_match[1]
