@@ -508,7 +508,17 @@ scheduler = BackgroundScheduler()
 
 def weekly_train_job():
     try:
-        train_ga_weights("default")  # Replace "default" if you want other types
+        for ptype in [
+            "default",
+            "friendship",
+            "loneliness",
+            "heartbreak",
+            "burnout",
+            "stress",
+            "guidance",
+            "study",
+        ]:
+            train_ga_weights(ptype)
     except Exception as e:
         print(f"Training failed: {e}")
 
