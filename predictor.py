@@ -135,8 +135,8 @@ def get_all_helpers(exclude_uid):
         data = doc.to_dict()
         uid = doc.id
 
-        # Skip if it's the same as the seeker or if offline
-        if uid == exclude_uid or not data.get("online"):
+        # Skip if it's the same as the seeker, offline, or busy
+        if uid == exclude_uid or not data.get("online") or data.get("busy"):
             continue
 
         personality = data.get("bigFivePersonality", {})
